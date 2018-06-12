@@ -3,7 +3,7 @@ import React, { Component } from 'react'
 import ReactDOM from 'react-dom'
 import fetch from 'node-fetch';
 
-export default class Gallery extends Component {
+export default class ImageView extends Component {
     constructor(props){
         super(props);
         this.state = {
@@ -12,18 +12,7 @@ export default class Gallery extends Component {
         }
 
         this.handleClick = this.handleClick.bind(this);
-        this.blobToDataUrl = this.blobToDataUrl.bind(this);
     }    
-
-    blobToDataUrl(blob){
-        return new Promise((resolve, reject) => {
-            var fr = new FileReader();  
-            fr.onload = function() {
-                resolve(fr.result);
-            };
-            fr.readAsDataURL(blob);
-        });
-    }
 
     openIndexedDB(){
         function dbErrorHandler(db, reject){
@@ -58,7 +47,7 @@ export default class Gallery extends Component {
         });    
     }
 
-    saveToIndexedDB(dataUrl, db){
+    saveToIndexedDB(blob, db){
         return new Promise((resolve, reject) => {
             var transaction = db.transaction(["images"], "readwrite");
 
@@ -73,30 +62,33 @@ export default class Gallery extends Component {
             };  
                 
             var objectStore = transaction.objectStore("images"); 
-            objectStore.add(dataUrl);
+            objectStore.add(blob);
         });
     }
 
-    getDataUrlAndOpenDB(blob) {
-        var dataUrl = this.blobToDataUrl(blob);
-        var db = this.openIndexedDB();
-        return Promise.all([dataUrl, db]);
+    getBlob(){
+        return (fetch(this.state.url, {
+            method: 'GET'
+        })
+        .then(res => {
+            if (!res.ok){
+                console.error(res.statusText);
+                return res;
+            } else {
+                return res.blob()
+            }
+        }));
     }
-    
+
+    getBlobAndOpenDB() {
+        var blob = this.getBlob();
+        var db = this.openIndexedDB();
+        return Promise.all([blob, db]);
+    }
+
     handleClick(e){
         var self = this;
-        fetch(self.state.url, {
-                method: 'GET'
-            })
-            .then(res => {
-                if (!res.ok){
-                    console.error(res.statusText);
-                    return res;
-                } else {
-                    return res.blob()
-                }
-            })
-            .then(blob => self.getDataUrlAndOpenDB(blob))
+        this.getBlobAndOpenDB()
             .then(combinedPromiseResults => self.saveToIndexedDB(combinedPromiseResults[0], combinedPromiseResults[1]));
         e.preventDefault();
     }
