@@ -41,7 +41,10 @@ export default class ImageView extends Component {
             };  
                 
             var objectStore = transaction.objectStore("images"); 
-            objectStore.add(blob);
+            objectStore.add({
+                id: this.state.id,
+                blob: blob
+            });
         });
     }
     
